@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual env
+.env/
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# Data & models
+/data/processed/
+/data/uploaded/
+/models/*.h5
+/models/*.tf
+/models/*.pt
+/models/*.pkl
+/logs/
+/monitoring/logs/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Node/Streamlit cache
+frontend/node_modules/
+frontend/.streamlit/
+
+# OS
+.DS_Store
+Thumbs.db
