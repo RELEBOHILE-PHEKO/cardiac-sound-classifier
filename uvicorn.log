@@ -1,0 +1,60 @@
+2025-11-22 01:38:40.770159: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2025-11-22 01:38:44.305545: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+INFO:     Started server process [19528]
+INFO:     Waiting for application startup.
+INFO:     Loading predictor from models\cardiac_cnn_model.h5
+2025-11-22 01:38:46.844178: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: SSE3 SSE4.1 SSE4.2 AVX AVX2 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+WARNING:absl:Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
+WARNING:absl:Error in loading the saved optimizer state. As a result, your model is starting with a freshly initialized optimizer.
+INFO:     Predictor loaded successfully.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55228 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62859 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56513 - "GET /uptime HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56515 - "GET /visualizations/prediction-history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50140 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50141 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50145 - "GET /uptime HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50144 - "GET /uptime HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50150 - "GET /visualizations/prediction-history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50151 - "GET /visualizations/prediction-history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51315 - "POST /batch-predict HTTP/1.1" 404 Not Found
+ERROR:    Error during /predict processing
+Traceback (most recent call last):
+  File "C:\Users\PC\.vscode\cardiac-sound-classifier\src\api.py", line 128, in predict_audio
+    data, sr = librosa.load(file.file, sr=4000, mono=True)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PC\.vscode\cardiac-sound-classifier\.venv\Lib\site-packages\librosa\core\audio.py", line 186, in load
+    raise exc
+  File "C:\Users\PC\.vscode\cardiac-sound-classifier\.venv\Lib\site-packages\librosa\core\audio.py", line 176, in load
+    y, sr_native = __soundfile_load(path, offset, duration, dtype)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PC\.vscode\cardiac-sound-classifier\.venv\Lib\site-packages\librosa\core\audio.py", line 209, in __soundfile_load
+    context = sf.SoundFile(path)
+              ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PC\.vscode\cardiac-sound-classifier\.venv\Lib\site-packages\soundfile.py", line 690, in __init__
+    self._file = self._open(file, mode_int, closefd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\PC\.vscode\cardiac-sound-classifier\.venv\Lib\site-packages\soundfile.py", line 1265, in _open
+    raise LibsndfileError(err, prefix="Error opening {0!r}: ".format(self.name))
+soundfile.LibsndfileError: Error opening <tempfile.SpooledTemporaryFile object at 0x0000023487AC59C0>: Format not recognised.
+INFO:     127.0.0.1:51317 - "POST /predict HTTP/1.1" 500 Internal Server Error
+
+[1m1/1[0m [32m====================[0m[37m[0m [1m0s[0m 180ms/step
+[1m1/1[0m [32m====================[0m[37m[0m [1m0s[0m 200ms/step
+INFO:     127.0.0.1:51321 - "POST /predict HTTP/1.1" 200 OK
+
+[1m1/1[0m [32m====================[0m[37m[0m [1m0s[0m 31ms/step
+[1m1/1[0m [32m====================[0m[37m[0m [1m0s[0m 45ms/step
+INFO:     127.0.0.1:51330 - "POST /predict HTTP/1.1" 200 OK
+
+[1m1/1[0m [32m====================[0m[37m[0m [1m0s[0m 17ms/step
+[1m1/1[0m [32m====================[0m[37m[0m [1m0s[0m 45ms/step
+INFO:     127.0.0.1:55118 - "POST /predict HTTP/1.1" 200 OK
+
+[1m1/1[0m [32m====================[0m[37m[0m [1m0s[0m 26ms/step
+[1m1/1[0m [32m====================[0m[37m[0m [1m0s[0m 32ms/step
+INFO:     127.0.0.1:57937 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61642 - "GET /openapi.json HTTP/1.1" 200 OK

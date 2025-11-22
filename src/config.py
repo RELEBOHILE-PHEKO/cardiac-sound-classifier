@@ -1,6 +1,12 @@
 """Configuration settings for HeartBeat AI."""
 from pathlib import Path
-from pydantic import BaseSettings
+
+# pydantic v2.12 moved BaseSettings to the separate `pydantic-settings` package.
+# Try the standard import first, and fall back to the compatibility package when needed.
+try:
+    from pydantic import BaseSettings
+except Exception:
+    from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
