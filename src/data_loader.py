@@ -22,13 +22,19 @@ class CardiacDatasetLoader:
     """
     
     train_dir: str = 'data/train/training'
-    test_dir: str = 'data/test/validation'
+    test_dir: str = 'data/validation'
     preprocessor: Optional[AudioPreprocessor] = None
     
     def __post_init__(self):
         # Set up folder paths
         self.train_path = Path(self.train_dir)
+        # Support both new and legacy layout: prefer `data/validation`, fallback to `data/test/validation`
         self.test_path = Path(self.test_dir)
+        if not self.test_path.exists():
+            legacy = Path('data') / 'test' / 'validation'
+            if legacy.exists():
+                print("Using legacy validation path: data/test/validation")
+                self.test_path = legacy
         
         # If no preprocessor is passed in, I just make one on the fly
         if self.preprocessor is None:

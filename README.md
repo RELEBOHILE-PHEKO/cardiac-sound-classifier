@@ -14,243 +14,197 @@ An AI-powered clinical decision support system for automated classification of c
 - **Model Performance Metrics**: View accuracy, precision, recall, F1 score, and AUC-ROC
 - **Support for Multiple Formats**: WAV, MP3, FLAC, and OGG audio files
 
-##  Architecture
+# HeartBeat AI — Cardiac Sound Classifier
+
+An end-to-end project that classifies cardiac sound recordings (heartbeats) into "normal" or "abnormal" using a Convolutional Neural Network (CNN). The repository provides a FastAPI backend, a Streamlit dashboard frontend, utilities for batch testing, and scripts for training and preprocessing audio.
+
+**This README covers:** quick setup, running the API + dashboard, API contract, training, testing, Docker, troubleshooting, and developer notes.
+
+**Repository layout**
 
 ```
 cardiac-sound-classifier/
-├── src/
-│   ├── api.py              # FastAPI backend
-│   ├── config.py           # Configuration settings
-│   └── train.py            # Model training script
-├── frontend/
-│   └── app.py              # Streamlit dashboard
-├── models/
-│   └── cardiac_cnn_model.h5  # Trained CNN model
-├── data/
-│   ├── train/              # Training data
-│   └── test/               # Test data
-└── monitoring/
-    └── metrics.json        # Model performance metrics
+├── src/                     # Backend and ML code
+│   ├── api.py               # FastAPI app and endpoints
+│   ├── config.py            # Configuration (paths, settings)
+│   ├── model.py             # Model wrapper utilities
+│   ├── preprocessing.py     # Audio preprocessing helpers
+│   └── train.py             # Training script
+├── frontend/                # Streamlit dashboard
+│   └── app.py
+├── models/                  # Model artifacts (not checked in)
+│   └── cardiac_cnn_model.h5
+├── data/                    # Dataset and uploads
+├── monitoring/              # Monitoring artifacts (metrics.json)
+├── tools/                   # Helper scripts (tests, inspectors)
+├── notebook/                # EDA notebooks
+├── requirements.txt
+├── Dockerfile
+└── docker-compose.yml
 ```
 
-## 🚀 Quick Start
+**Quick start (local development)**
 
-### Prerequisites
+- Requirements: Python 3.11+, Git, and a machine with enough CPU memory for TensorFlow (GPU optional).
 
-- Python 3.11+
-- pip
-- Virtual environment (recommended)
+1. Clone and enter the repo
 
-### Installation
-
-1. **Clone the repository**
-```bash
+```powershell
 git clone <your-repo-url>
 cd cardiac-sound-classifier
 ```
 
-2. **Create and activate virtual environment**
-```bash
-# Windows
-python -m venv .venv
-.venv\Scripts\activate
+2. Create & activate virtual environment
 
-# Linux/Mac
+```powershell
 python -m venv .venv
-source .venv/bin/activate
+.venv\Scripts\Activate.ps1
 ```
 
-3. **Install dependencies**
-```bash
+3. Install dependencies
+
+```powershell
 pip install -r requirements.txt
 ```
 
-4. **Verify model file exists**
-```bash
-# Ensure cardiac_cnn_model.h5 is in the models/ directory
+4. Place or verify the trained model
+
+Ensure `models/cardiac_cnn_model.h5` exists. If not available, run training (see Training section) or copy the model into `models/`.
+
+5. Run the API server (development)
+
+```powershell
+.venv\Scripts\python.exe -m uvicorn src.api:app --reload --host 127.0.0.1 --port 8000
 ```
 
-### Running the Application
+6. Run the Streamlit dashboard (in a new terminal)
 
-#### Start the API Server
-```bash
-# Windows PowerShell
-.venv\Scripts\python.exe -m uvicorn src.api:app --reload --host 0.0.0.0 --port 8000
-
-# Linux/Mac
-python -m uvicorn src.api:app --reload --host 0.0.0.0 --port 8000
+```powershell
+.venv\Scripts\python.exe -m streamlit run frontend/app.py --server.port 8501 --server.headless true
 ```
 
-#### Start the Dashboard (in a new terminal)
-```bash
-# Windows PowerShell
-.venv\Scripts\streamlit run frontend/app.py
+Open the dashboard at: http://localhost:8501
 
-# Linux/Mac
-streamlit run frontend/app.py
-```
+**API summary**
 
-Access the dashboard at: **http://localhost:8501**
+- `GET /health` — health and model-loaded status
+- `GET /uptime` — server uptime
+- `POST /predict` — single-file prediction (multipart form, key `file`)
+- `POST /batch-predict` — multi-file prediction (multipart form, key `files` repeated)
+- `GET /metrics` — monitoring metrics (from `monitoring/metrics.json` or fallback)
+- `GET /visualizations/prediction-history` — last predictions
+- `GET /visualizations/class-distribution` — counts from `data/train`
 
-## 📊 Model Information
+Example: single prediction (Python)
 
-- **Architecture**: Convolutional Neural Network (CNN)
-- **Input**: Mel-spectrogram representations of cardiac audio (128 mel bands, 5-second clips)
-- **Output**: Binary classification (Normal vs Abnormal)
-- **Sample Rate**: 4000 Hz
-- **Performance Metrics**:
-  - Accuracy: 85.5%
-  - Precision: 64.9%
-  - Recall: 63.9%
-  - F1 Score: 64.4%
-  - AUC-ROC: 0.900
-
-## 🔌 API Endpoints
-
-### Health & Status
-- `GET /health` - Check API and model status
-- `GET /uptime` - Get server uptime information
-
-### Predictions
-- `POST /predict` - Classify a single audio file
-- `POST /batch-predict` - Classify multiple audio files
-
-### Monitoring
-- `GET /metrics` - Get model performance metrics
-- `GET /visualizations/prediction-history` - Get recent predictions
-- `GET /visualizations/class-distribution` - Get training data distribution
-
-### Training
-- `GET /training-status` - Check training status
-- `POST /retrain` - Trigger model retraining
-- `POST /upload-training-data` - Upload new training data
-
-## API Usage Examples
-
-### Single Prediction
 ```python
 import requests
 
-url = "http://localhost:8000/predict"
-files = {"file": open("heartbeat.wav", "rb")}
-response = requests.post(url, files=files)
-print(response.json())
+resp = requests.post('http://127.0.0.1:8000/predict', files={'file': open('heartbeat.wav','rb')})
+print(resp.json())
 ```
 
-### Batch Prediction
+Example: batch prediction (Python)
+
 ```python
-import requests
-
-url = "http://localhost:8000/batch-predict"
-files = [
-    ("files", open("heartbeat1.wav", "rb")),
-    ("files", open("heartbeat2.wav", "rb"))
-]
-response = requests.post(url, files=files)
-print(response.json())
+files = [('files', open('a.wav','rb')), ('files', open('b.wav','rb'))]
+resp = requests.post('http://127.0.0.1:8000/batch-predict', files=files)
+print(resp.json())
 ```
 
-##  Training Your Own Model
+**Data & model**
 
-1. **Prepare your data**
-   - Place audio files in `data/train/normal/` and `data/train/abnormal/`
-   - Supported formats: WAV, MP3, FLAC
+- `data/train/` — training audio organized by class (e.g. `training-a/` etc.)
+- `models/cardiac_cnn_model.h5` — trained Keras model used by the API
+- Preprocessing converts audio to a 5-second clip sampled at 4000Hz and extracts 128-band mel-spectrograms.
 
-2. **Run training**
-```bash
+**Training**
+
+1. Prepare labeled audio under `data/train/normal/` and `data/train/abnormal/` (or adapt `train.py` dataset loader).
+2. Edit training hyperparameters in `src/config.py` if needed.
+3. Run training:
+
+```powershell
 python src/train.py
 ```
 
-3. **Model will be saved to**
-```
-models/cardiac_cnn_model.h5
-```
+Output model will be saved to `models/cardiac_cnn_model.h5` by default.
 
-##  Deployment
+**Testing & utilities**
 
-### Deploy API (Render/Railway/Fly.io)
+- Unit tests: run `pytest` if present (see `tests/` folder).
+- Batch test helper: `tools/run_batch_test.py` — posts sample audio to `/batch-predict` and falls back to `/predict` per file.
+- Route inspector: `tools/inspect_routes.py` can print the FastAPI app routes for debugging.
 
-**requirements.txt** should include:
-```
-fastapi
-uvicorn
-tensorflow
-librosa
-numpy
-python-multipart
+**Docker (quick)**
+
+Build and run with docker-compose (containerized API + dashboard if configured):
+
+```powershell
+docker-compose build
+docker-compose up
 ```
 
-**Start command**:
-```bash
-uvicorn src.api:app --host 0.0.0.0 --port $PORT
-```
+Adjust Dockerfile and docker-compose.yml for production deployment (set environment variables, mount model, configure secrets).
 
-### Deploy Dashboard (Streamlit Community Cloud)
+**Common troubleshooting**
 
-1. Push code to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect your repository
-4. Set `frontend/app.py` as the main file
-5. Add API URL in Streamlit secrets:
-```toml
-API_BASE_URL = "https://your-api-url.com"
-```
+- Model not loaded / 503: ensure `models/cardiac_cnn_model.h5` exists and is compatible with installed TensorFlow. Check server logs for stack traces.
+- Audio "format not recognized": API reads uploaded bytes with `librosa` using `io.BytesIO` — ensure the uploaded files are valid audio files and supported formats (WAV, MP3, FLAC, OGG).
+- `--reload` causing stale imports: if you see duplicate startup handlers or NameError for `datetime`, stop reloader and restart uvicorn without `--reload` while editing `src/api.py` carefully.
+- Large TensorFlow logs: set `TF_CPP_MIN_LOG_LEVEL=2` in your environment to reduce verbosity.
 
-##  Configuration
+**Developer notes**
 
-Edit `src/config.py` to customize:
-- Model directory path
-- Data directory paths
-- Training parameters
-- API settings
+- Backend entrypoint: `src.api:app` (Uvicorn/ASGI)
+- Predictor is lazy-loaded during app lifespan; errors during load are logged to `uvicorn.error` and the `/health` endpoint shows `model_loaded: false` when not loaded.
+- The dashboard gracefully falls back to per-file `/predict` if `/batch-predict` is unavailable.
 
-## Dependencies
+**Contribution & license**
 
-### Core
-- FastAPI - Web API framework
-- Streamlit - Dashboard interface
-- TensorFlow - Deep learning framework
-- Librosa - Audio processing
-- NumPy - Numerical computations
-
-### Full list
-See `requirements.txt`
-
-##  Testing
-
-```bash
-# Test API health
-curl http://localhost:8000/health
-
-# Test prediction
-curl -X POST -F "file=@test_audio.wav" http://localhost:8000/predict
-```
-
-##  Monitoring
-
-The dashboard provides:
-- Real-time API status
-- Model load status
-- Server uptime
-- Prediction history (last 100 predictions)
-- Performance metrics
-- Class distribution visualization
-
-
-
-- Training data: PhysioNet2016
-
-
-
-## 🔮 Future Enhancements
-
-- [ ] Multi-class classification (additional heart conditions)
-- [ ] Real-time audio streaming support
-- [ ] Mobile app integration
-- [ ] Enhanced visualization tools
-- [ ] Model explainability features
-- [ ] Integration with EHR systems
+Contributions welcome — open an issue or submit a PR. This project is provided for research/education; adapt licensing and data governance for clinical use.
 
 ---
 
-**Note**: This system is intended for research and educational purposes. Always consult qualified healthcare professionals for medical diagnoses.
+If you'd like, I can:
+- run the repository tests and the batch test now and paste the outputs,
+- commit and push the updated README and notebook to your remote, or
+- add a short `CONTRIBUTING.md` and `.gitignore` entries for model artifacts.
+
+Which would you like next?
+
+## Load testing / Locust results
+
+I ran a short Locust load test against the API and saved the full time-series CSV under `outputs/locust/`.
+
+Top-line results (run `outputs/locust/run1`):
+
+- Total requests: ~4,200 (see `outputs/locust/run1_stats_history.csv` for the exact time-series)
+- Failures: 0
+- Peak requests/s: ~50 req/s
+- Median response time (end of run): ~10–12 ms
+- Average response time (end of run): ~12–32 ms
+- Max observed response time: ~176 ms
+
+Generated artifacts (in the repo):
+
+- `outputs/locust/locust_requests.png` — Requests/sec vs time
+- `outputs/locust/locust_response_times.png` — Median and average response times vs time
+- `outputs/locust/summary.txt` — short textual summary of the run
+
+How to reproduce locally
+
+1. Start the API server (see Quick start above).
+2. Run a headless Locust test (example):
+
+```powershell
+Set-Location 'C:\Users\PC\.vscode\cardiac-sound-classifier'
+# Example: 100 users, spawn-rate 50 users/sec, 2 minutes
+python -m locust -f tests\locustfile.py --headless -u 100 -r 50 -t 2m --host http://127.0.0.1:8000 --csv outputs\locust\run1
+```
+
+3. The CSV and PNG plots will be stored under `outputs/locust/`.
+
+Notes
+
+- The API handled ~50 requests/sec under this local test with no recorded failures. Response times were low for the majority of requests, with occasional spikes up to ~176 ms. For a proper production evaluation, repeat tests on cloud-deployed instances and compare performance across different numbers of containers/replicas.

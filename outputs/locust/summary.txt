@@ -1,0 +1,6 @@
+Total requests: 0
+Total failures: 0
+Peak requests/s: 50.9
+Median response time (end): 0.0 ms
+Average response time (end): 0.0 ms
+Max observed response time: 176.4 ms

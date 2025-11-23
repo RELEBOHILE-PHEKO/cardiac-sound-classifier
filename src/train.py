@@ -100,8 +100,13 @@ def train_pipeline(
         preprocessor,
         class_names,
     )
+    # validation directory may be named 'validation' or legacy 'test'
+    val_dir = data_dir / "validation"
+    if not val_dir.exists():
+        val_dir = data_dir / "test"
+
     val_wave, val_spec, val_labels = prepare_numpy_arrays(
-        data_dir / "test",
+        val_dir,
         preprocessor,
         class_names,
     )
@@ -225,10 +230,11 @@ def plot_confusion_matrix(
     """Plot confusion matrix heatmap."""
     save_path = Path(save_path)
     plt.figure(figsize=(8, 6))
+    # Use float annotation format to support non-integer matrices
     sns.heatmap(
         cm,
         annot=True,
-        fmt="d",
+        fmt=".2f",
         cmap="Blues",
         xticklabels=classes,
         yticklabels=classes,
