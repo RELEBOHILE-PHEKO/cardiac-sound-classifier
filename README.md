@@ -2,10 +2,7 @@
 
 *A deep learning–powered clinical decision support system for automated classification of cardiac (heart) sounds.*
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
-[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15+-orange.svg)](https://www.tensorflow.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 
 HeartBeat AI analyzes short audio recordings of heartbeats and determines whether they contain **normal** or **abnormal** cardiac sound patterns. It uses mel-spectrograms and a custom-designed Convolutional Neural Network (CNN) trained on real-world heart sound datasets.
 
@@ -138,9 +135,9 @@ cardiac-sound-classifier/
 
 ---
 
-## 🔬 **Feature Interpretation & Clinical Insights**
+##  **Feature Interpretation & Clinical Insights**
 
-Our analysis examined three key acoustic features that distinguish normal from abnormal cardiac sounds:
+The analysis examined three key acoustic features that distinguish normal from abnormal cardiac sounds:
 
 ### 1. Frequency Band Energy Distribution
 
