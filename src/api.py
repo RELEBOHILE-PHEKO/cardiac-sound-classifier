@@ -1,4 +1,5 @@
-"""FastAPI backend for the cardiac sound classifier."""
+"""FastAPI backend for the cardiac sound classifier using TFLite."""
+
 from __future__ import annotations
 
 import io
@@ -10,7 +11,6 @@ from pathlib import Path
 
 import librosa
 import numpy as np
-import tensorflow as tf
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,21 +23,26 @@ from src.config import settings
 logger = logging.getLogger("uvicorn.error")
 
 # -------------------------------------------------------------------
-# Model wrapper
+# TFLite Model wrapper
 # -------------------------------------------------------------------
-class HeartbeatPredictor:
-    """Simple model interface for heartbeat classification."""
+class HeartbeatPredictorTFLite:
+    """TFLite model interface for heartbeat classification."""
     def __init__(self, model_path: Path):
         if not model_path.exists():
-            raise FileNotFoundError(f"Model not found: {model_path}")
-        self.model = tf.keras.models.load_model(model_path)
+            raise FileNotFoundError(f"TFLite model not found: {model_path}")
+
+        import tensorflow as tf
+        self.interpreter = tf.lite.Interpreter(model_path=str(model_path))
+        self.interpreter.allocate_tensors()
+
+        self.input_details = self.interpreter.get_input_details()
+        self.output_details = self.interpreter.get_output_details()
         self.classes = ["normal", "abnormal"]
 
     def preprocess(self, wav: np.ndarray, sr: int):
         target_len = int(sr * 5)
         if wav.shape[0] < target_len:
-            pad_width = target_len - wav.shape[0]
-            wav = np.pad(wav, (0, pad_width), mode="constant")
+            wav = np.pad(wav, (0, target_len - wav.shape[0]), mode="constant")
         else:
             wav = wav[:target_len]
 
@@ -50,16 +55,18 @@ class HeartbeatPredictor:
 
     def predict(self, wav: np.ndarray, sr: int):
         x = self.preprocess(wav, sr)
-        prob = self.model.predict(x, verbose=0)[0]
-        
-        # Handle both single output (sigmoid) and dual output (softmax)
+
+        self.interpreter.set_tensor(self.input_details[0]['index'], x)
+        self.interpreter.invoke()
+        prob = self.interpreter.get_tensor(self.output_details[0]['index'])[0]
+
         if len(prob) == 1:
             prob_abnormal = float(prob[0])
             prob_normal = 1.0 - prob_abnormal
         else:
             prob_normal = float(prob[0])
             prob_abnormal = float(prob[1])
-        
+
         if prob_abnormal >= 0.5:
             return "abnormal", prob_abnormal
         else:
@@ -68,8 +75,8 @@ class HeartbeatPredictor:
 # -------------------------------------------------------------------
 # Global state
 # -------------------------------------------------------------------
-MODEL_PATH = settings.model_dir / "cardiac_cnn_model.h5"
-predictor: HeartbeatPredictor | None = None
+MODEL_PATH = settings.model_dir / "cardiac_cnn_model.tflite"
+predictor: HeartbeatPredictorTFLite | None = None
 prediction_history: list = []
 startup_time: datetime | None = None
 
@@ -82,9 +89,9 @@ async def lifespan(app: FastAPI):
     startup_time = datetime.now(timezone.utc)
 
     try:
-        logger.info(f"Loading predictor from {MODEL_PATH}")
-        predictor = HeartbeatPredictor(MODEL_PATH)
-        logger.info("Predictor loaded successfully.")
+        logger.info(f"Loading TFLite predictor from {MODEL_PATH}")
+        predictor = HeartbeatPredictorTFLite(MODEL_PATH)
+        logger.info("TFLite predictor loaded successfully.")
     except Exception as e:
         predictor = None
         logger.exception(f"Failed to load predictor: {e}")
@@ -150,7 +157,6 @@ async def predict_audio(file: UploadFile = File(...)):
 
 @app.post("/batch-predict")
 async def batch_predict(files: list[UploadFile] = File(...)):
-    """Predict multiple audio files at once."""
     if predictor is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
@@ -178,69 +184,12 @@ async def batch_predict(files: list[UploadFile] = File(...)):
     return {"results": results, "total": len(files)}
 
 # -------------------------------------------------------------------
-# Training
-# -------------------------------------------------------------------
-@app.post("/retrain")
-async def trigger_retrain():
-    """Trigger model retraining."""
-    return {"message": "Retraining triggered.", "status": "started"}
-
-@app.post("/upload-training-data")
-async def upload_training_data(files: list[UploadFile] = File(...), target_class: str = "normal"):
-    """Upload new training data."""
-    if target_class not in ["normal", "abnormal"]:
-        raise HTTPException(status_code=400, detail="Invalid target_class")
-    
-    upload_dir = Path(f"data/uploads/{target_class}")
-    upload_dir.mkdir(parents=True, exist_ok=True)
-    
-    saved_count = 0
-    for file in files:
-        if file.filename.lower().endswith((".wav", ".mp3", ".flac")):
-            content = await file.read()
-            (upload_dir / file.filename).write_bytes(content)
-            saved_count += 1
-    
-    return {"message": f"Uploaded {saved_count} files", "count": saved_count}
-
-@app.get("/training-status")
-def training_status():
-    return {"status": "idle", "progress": 0, "message": "No training in progress"}
-
-# -------------------------------------------------------------------
-# Metrics & Visualization
-# -------------------------------------------------------------------
-@app.get("/metrics")
-def metrics():
-    metrics_file = Path("monitoring/metrics.json")
-    if metrics_file.exists():
-        try:
-            return json.loads(metrics_file.read_text())
-        except Exception:
-            pass
-    return {"accuracy": None, "predictions_served": len(prediction_history)}
-
-@app.get("/visualizations/prediction-history")
-def get_prediction_history():
-    return {"history": prediction_history[-100:]}
-
-@app.get("/visualizations/class-distribution")
-def class_distribution():
-    dist = {"normal": 0, "abnormal": 0}
-    for d in [Path("data/train/training"), Path("data/train")]:
-        if d.exists():
-            for c in d.iterdir():
-                if c.is_dir() and c.name in dist:
-                    dist[c.name] += len(list(c.glob("*.wav")))
-    return {"distribution": dist}
-    
-# -------------------------------------------------------------------
 # Root endpoint
 # -------------------------------------------------------------------
 @app.get("/")
 def root():
     return {
-        "status": "HeartBeat AI API is running!",
+        "status": "HeartBeat AI API is running with TFLite!",
         "version": "1.0",
         "endpoints": {
             "health": "/health",
@@ -255,6 +204,3 @@ def root():
 # -------------------------------------------------------------------
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-
-
