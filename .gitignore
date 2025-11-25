@@ -15,13 +15,8 @@ ENV/
 .vscode/
 .idea/
 
-# Data & models
 /data/processed/
 /data/uploaded/
-/models/*.h5
-/models/*.tf
-/models/*.pt
-/models/*.pkl
 /logs/
 /monitoring/logs/
 
