@@ -1,4 +1,4 @@
-"""FastAPI backend for the cardiac sound classifier."""
+""" Memory-optimized FastAPI backend for cardiac sound classifier."""
 from __future__ import annotations
 
 import io
@@ -6,10 +6,10 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
+import gc
 
 import librosa
 import numpy as np
-import tensorflow as tf
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,15 +22,37 @@ from src.config import settings
 logger = logging.getLogger("uvicorn.error")
 
 # -------------------------------------------------------------------
-# Model wrapper
+# Model wrapper with lazy loading
 # -------------------------------------------------------------------
 class HeartbeatPredictor:
     def __init__(self, model_path: Path):
-        if not model_path.exists():
-            raise FileNotFoundError(f"Model not found: {model_path}")
-        self.model = tf.keras.models.load_model(model_path)
+        self.model_path = model_path
+        self.model = None  # Don't load immediately
         self.classes = ["normal", "abnormal"]
         self.threshold = 0.5
+
+    def _load_model(self):
+        """Lazy load model only when needed."""
+        if self.model is None:
+            import tensorflow as tf
+            # Configure TensorFlow for minimal memory usage
+            tf.config.set_visible_devices([], 'GPU')  # Disable GPU
+            tf.config.threading.set_inter_op_parallelism_threads(1)
+            tf.config.threading.set_intra_op_parallelism_threads(1)
+            
+            if not self.model_path.exists():
+                raise FileNotFoundError(f"Model not found: {self.model_path}")
+            
+            self.model = tf.keras.models.load_model(self.model_path)
+            logger.info("Model loaded successfully")
+
+    def _unload_model(self):
+        """Unload model to free memory."""
+        if self.model is not None:
+            del self.model
+            self.model = None
+            gc.collect()
+            logger.info("Model unloaded to free memory")
 
     def preprocess(self, wav: np.ndarray, sr: int):
         target_len = int(sr * 5)
@@ -38,37 +60,57 @@ class HeartbeatPredictor:
             wav = np.pad(wav, (0, target_len - wav.shape[0]), mode="constant")
         else:
             wav = wav[:target_len]
+        
         mel = librosa.feature.melspectrogram(
             y=wav, sr=sr, n_mels=128, hop_length=256, fmin=20, fmax=2000
         )
         mel_db = librosa.power_to_db(mel, ref=np.max)
         mel_db = np.expand_dims(mel_db, axis=-1)
-        return np.expand_dims(mel_db, axis=0).astype("float32")
+        result = np.expand_dims(mel_db, axis=0).astype("float32")
+        
+        # Clean up intermediate arrays
+        del wav, mel, mel_db
+        gc.collect()
+        
+        return result
 
     def predict(self, wav: np.ndarray, sr: int) -> dict:
-        x = self.preprocess(wav, sr)
-        raw = self.model.predict(x, verbose=0)[0]
+        # Load model on demand
+        self._load_model()
+        
+        try:
+            x = self.preprocess(wav, sr)
+            raw = self.model.predict(x, verbose=0)[0]
 
-        if len(raw) == 1:
-            prob_abnormal = float(raw[0])
-            prob_normal = 1.0 - prob_abnormal
-        else:
-            prob_normal = float(raw[0])
-            prob_abnormal = float(raw[1])
+            if len(raw) == 1:
+                prob_abnormal = float(raw[0])
+                prob_normal = 1.0 - prob_abnormal
+            else:
+                prob_normal = float(raw[0])
+                prob_abnormal = float(raw[1])
 
-        if prob_abnormal >= self.threshold:
-            predicted_class = "abnormal"
-            confidence = prob_abnormal
-        else:
-            predicted_class = "normal"
-            confidence = prob_normal
+            if prob_abnormal >= self.threshold:
+                predicted_class = "abnormal"
+                confidence = prob_abnormal
+            else:
+                predicted_class = "normal"
+                confidence = prob_normal
 
-        return {
-            "predicted_class": predicted_class,
-            "confidence": round(confidence, 4),
-            "probability_normal": round(prob_normal, 4),
-            "probability_abnormal": round(prob_abnormal, 4),
-        }
+            result = {
+                "predicted_class": predicted_class,
+                "confidence": round(confidence, 4),
+                "probability_normal": round(prob_normal, 4),
+                "probability_abnormal": round(prob_abnormal, 4),
+            }
+            
+            # Clean up
+            del x, raw
+            gc.collect()
+            
+            return result
+        finally:
+            # Unload model after prediction to free memory
+            self._unload_model()
 
 # -------------------------------------------------------------------
 # Global state
@@ -76,10 +118,11 @@ class HeartbeatPredictor:
 MODEL_PATH = settings.model_dir / "cardiac_cnn_model.h5"
 predictor: HeartbeatPredictor | None = None
 prediction_history: list = []
+MAX_HISTORY = 50  # Limit history to save memory
 startup_time: datetime | None = None
 
 # -------------------------------------------------------------------
-# Lifespan event (replaces @app.on_event("startup"))
+# Lifespan event
 # -------------------------------------------------------------------
 from contextlib import asynccontextmanager
 
@@ -89,15 +132,20 @@ async def lifespan(app: FastAPI):
     startup_time = datetime.now(timezone.utc)
 
     try:
-        logger.info(f"Loading predictor from {MODEL_PATH}")
+        logger.info(f"Initializing predictor (lazy loading)")
+        # Don't load model at startup - just create the predictor
         predictor = HeartbeatPredictor(MODEL_PATH)
-        logger.info("Predictor loaded successfully.")
+        logger.info("Predictor initialized successfully.")
     except Exception as e:
         predictor = None
-        logger.exception(f"Failed to load predictor: {e}")
+        logger.exception(f"Failed to initialize predictor: {e}")
 
-    yield  # App runs here
-    # Optional: shutdown cleanup code goes here
+    yield
+    
+    # Cleanup on shutdown
+    if predictor:
+        predictor._unload_model()
+    gc.collect()
 
 # -------------------------------------------------------------------
 # App initialization
@@ -114,9 +162,13 @@ app.add_middleware(
 # -------------------------------------------------------------------
 # Health & Status
 # -------------------------------------------------------------------
+@app.get("/")
+def root():
+    return {"status": "HeartBeat AI API is running!"}
+
 @app.get("/health")
 def health():
-    return {"status": "ok", "model_loaded": predictor is not None}
+    return {"status": "ok", "predictor_ready": predictor is not None}
 
 @app.get("/uptime")
 def uptime():
@@ -133,18 +185,28 @@ async def predict_audio(file: UploadFile = File(...)):
     if not file.filename.lower().endswith((".wav", ".mp3", ".ogg", ".flac")):
         raise HTTPException(status_code=400, detail="Invalid audio format")
     if predictor is None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
+        raise HTTPException(status_code=503, detail="Predictor not initialized")
 
     try:
         content = await file.read()
         audio, sr = librosa.load(io.BytesIO(content), sr=4000, mono=True)
         raw_result = predictor.predict(audio, sr)
-        logger.info(f"predict_audio: raw_result type={type(raw_result)} repr={str(raw_result)[:200]}")
+        
+        # Clean up audio data
+        del content, audio
+        gc.collect()
+        
+        logger.info(f"predict_audio: raw_result type={type(raw_result)}")
 
         out = raw_result.copy() if isinstance(raw_result, dict) else {"prediction": raw_result}
         out["file_name"] = file.filename
         out["timestamp"] = datetime.now(timezone.utc).isoformat()
+        
+        # Maintain limited history
         prediction_history.append(out.copy())
+        if len(prediction_history) > MAX_HISTORY:
+            prediction_history.pop(0)
+        
         return out
     except Exception as e:
         logger.exception("Prediction error")
@@ -153,7 +215,10 @@ async def predict_audio(file: UploadFile = File(...)):
 @app.post("/batch-predict")
 async def batch_predict(files: list[UploadFile] = File(...)):
     if predictor is None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
+        raise HTTPException(status_code=503, detail="Predictor not initialized")
+    
+    if len(files) > 10:
+        raise HTTPException(status_code=400, detail="Maximum 10 files per batch")
 
     results = []
     for file in files:
@@ -161,12 +226,21 @@ async def batch_predict(files: list[UploadFile] = File(...)):
             content = await file.read()
             audio, sr = librosa.load(io.BytesIO(content), sr=4000, mono=True)
             raw_result = predictor.predict(audio, sr)
-            logger.info(f"batch_predict: raw_result type={type(raw_result)} repr={str(raw_result)[:200]}")
+            
+            # Clean up
+            del content, audio
+            gc.collect()
+            
+            logger.info(f"batch_predict: raw_result type={type(raw_result)}")
 
             out = raw_result.copy() if isinstance(raw_result, dict) else {"prediction": raw_result}
             out["file_name"] = file.filename
             out["status"] = "success"
+            
             prediction_history.append(out.copy())
+            if len(prediction_history) > MAX_HISTORY:
+                prediction_history.pop(0)
+            
             results.append(out)
         except Exception as e:
             results.append({"file_name": file.filename, "status": "error", "error": str(e)})
@@ -188,7 +262,7 @@ def metrics():
 
 @app.get("/visualizations/prediction-history")
 def get_prediction_history():
-    return {"history": prediction_history[-100:]}
+    return {"history": prediction_history[-50:]}  # Return max 50
 
 @app.get("/visualizations/class-distribution")
 def class_distribution():
@@ -201,30 +275,15 @@ def class_distribution():
     return {"distribution": dist}
 
 # -------------------------------------------------------------------
-# Training
+# Training (disabled for memory constraints)
 # -------------------------------------------------------------------
 @app.get("/training-status")
 def training_status():
-    return {"status": "idle", "progress": 0, "message": "No training in progress"}
+    return {"status": "disabled", "message": "Training disabled due to memory constraints"}
 
 @app.post("/retrain")
 async def trigger_retrain(background_tasks: BackgroundTasks):
-    """Trigger retraining in a background task so the API remains responsive.
-
-    This will execute `src/train.py` using the current Python interpreter.
-    """
-    def _run_retrain():
-        try:
-            import subprocess, sys
-            cwd = Path(__file__).resolve().parents[1]
-            cmd = [sys.executable, str(cwd / 'src' / 'train.py')]
-            subprocess.Popen(cmd, cwd=str(cwd))
-            logger.info("Retraining subprocess started.")
-        except Exception as ex:
-            logger.exception(f"Failed to start retraining: {ex}")
-
-    background_tasks.add_task(_run_retrain)
-    return {"message": "Retraining triggered.", "status": "started"}
+    raise HTTPException(status_code=503, detail="Training disabled on this instance due to memory constraints")
 
 @app.post("/upload-training-data")
 async def upload_training_data(files: list[UploadFile] = File(...), target_class: str = "normal"):
@@ -247,7 +306,12 @@ async def upload_training_data(files: list[UploadFile] = File(...), target_class
 # Run
 # -------------------------------------------------------------------
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-@app.get("/")
-def root():
-    return {"status": "HeartBeat AI API is running!"}
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=port,
+        log_level="info",
+        workers=1  # Single worker to minimize memory
+    )
