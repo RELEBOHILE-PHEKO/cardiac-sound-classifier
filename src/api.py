@@ -233,9 +233,28 @@ def class_distribution():
                 if c.is_dir() and c.name in dist:
                     dist[c.name] += len(list(c.glob("*.wav")))
     return {"distribution": dist}
+    
+# -------------------------------------------------------------------
+# Root endpoint
+# -------------------------------------------------------------------
+@app.get("/")
+def root():
+    return {
+        "status": "HeartBeat AI API is running!",
+        "version": "1.0",
+        "endpoints": {
+            "health": "/health",
+            "predict": "/predict",
+            "batch_predict": "/batch-predict",
+            "docs": "/docs"
+        }
+    }
 
 # -------------------------------------------------------------------
-# Entry
+# Run
 # -------------------------------------------------------------------
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
