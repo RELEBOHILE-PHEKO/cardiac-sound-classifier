@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -11,7 +12,7 @@ import librosa
 import numpy as np
 import tensorflow as tf
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, UploadFile, BackgroundTasks
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.config import settings
@@ -25,19 +26,21 @@ logger = logging.getLogger("uvicorn.error")
 # Model wrapper
 # -------------------------------------------------------------------
 class HeartbeatPredictor:
+    """Simple model interface for heartbeat classification."""
     def __init__(self, model_path: Path):
         if not model_path.exists():
             raise FileNotFoundError(f"Model not found: {model_path}")
         self.model = tf.keras.models.load_model(model_path)
         self.classes = ["normal", "abnormal"]
-        self.threshold = 0.5
 
     def preprocess(self, wav: np.ndarray, sr: int):
         target_len = int(sr * 5)
         if wav.shape[0] < target_len:
-            wav = np.pad(wav, (0, target_len - wav.shape[0]), mode="constant")
+            pad_width = target_len - wav.shape[0]
+            wav = np.pad(wav, (0, pad_width), mode="constant")
         else:
             wav = wav[:target_len]
+
         mel = librosa.feature.melspectrogram(
             y=wav, sr=sr, n_mels=128, hop_length=256, fmin=20, fmax=2000
         )
@@ -45,30 +48,22 @@ class HeartbeatPredictor:
         mel_db = np.expand_dims(mel_db, axis=-1)
         return np.expand_dims(mel_db, axis=0).astype("float32")
 
-    def predict(self, wav: np.ndarray, sr: int) -> dict:
+    def predict(self, wav: np.ndarray, sr: int):
         x = self.preprocess(wav, sr)
-        raw = self.model.predict(x, verbose=0)[0]
-
-        if len(raw) == 1:
-            prob_abnormal = float(raw[0])
+        prob = self.model.predict(x, verbose=0)[0]
+        
+        # Handle both single output (sigmoid) and dual output (softmax)
+        if len(prob) == 1:
+            prob_abnormal = float(prob[0])
             prob_normal = 1.0 - prob_abnormal
         else:
-            prob_normal = float(raw[0])
-            prob_abnormal = float(raw[1])
-
-        if prob_abnormal >= self.threshold:
-            predicted_class = "abnormal"
-            confidence = prob_abnormal
+            prob_normal = float(prob[0])
+            prob_abnormal = float(prob[1])
+        
+        if prob_abnormal >= 0.5:
+            return "abnormal", prob_abnormal
         else:
-            predicted_class = "normal"
-            confidence = prob_normal
-
-        return {
-            "predicted_class": predicted_class,
-            "confidence": round(confidence, 4),
-            "probability_normal": round(prob_normal, 4),
-            "probability_abnormal": round(prob_abnormal, 4),
-        }
+            return "normal", prob_normal
 
 # -------------------------------------------------------------------
 # Global state
@@ -79,10 +74,8 @@ prediction_history: list = []
 startup_time: datetime | None = None
 
 # -------------------------------------------------------------------
-# Lifespan event (replaces @app.on_event("startup"))
+# Lifespan event
 # -------------------------------------------------------------------
-from contextlib import asynccontextmanager
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global predictor, startup_time
@@ -96,13 +89,13 @@ async def lifespan(app: FastAPI):
         predictor = None
         logger.exception(f"Failed to load predictor: {e}")
 
-    yield  # App runs here
-    # Optional: shutdown cleanup code goes here
+    yield
 
 # -------------------------------------------------------------------
-# App initialization
+# API setup
 # -------------------------------------------------------------------
-app = FastAPI(title="HeartBeat AI API", version="1.0", lifespan=lifespan)
+app = FastAPI(title="Cardiac Sound Classifier API", version="1.0", lifespan=lifespan)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -131,27 +124,33 @@ def uptime():
 @app.post("/predict")
 async def predict_audio(file: UploadFile = File(...)):
     if not file.filename.lower().endswith((".wav", ".mp3", ".ogg", ".flac")):
-        raise HTTPException(status_code=400, detail="Invalid audio format")
+        raise HTTPException(status_code=400, detail="Invalid audio format.")
+
     if predictor is None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
+        raise HTTPException(status_code=503, detail="Model not loaded.")
 
     try:
         content = await file.read()
-        audio, sr = librosa.load(io.BytesIO(content), sr=4000, mono=True)
-        raw_result = predictor.predict(audio, sr)
-        logger.info(f"predict_audio: raw_result type={type(raw_result)} repr={str(raw_result)[:200]}")
+        audio_data, sr = librosa.load(io.BytesIO(content), sr=4000, mono=True)
+        label, conf = predictor.predict(audio_data, sr)
 
-        out = raw_result.copy() if isinstance(raw_result, dict) else {"prediction": raw_result}
-        out["file_name"] = file.filename
-        out["timestamp"] = datetime.now(timezone.utc).isoformat()
-        prediction_history.append(out.copy())
-        return out
+        result = {
+            "predicted_class": label,
+            "confidence": float(conf),
+            "file_name": file.filename,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+        prediction_history.append(result.copy())
+        return result
+
     except Exception as e:
-        logger.exception("Prediction error")
+        logger.exception("Error during /predict processing")
         raise HTTPException(status_code=500, detail=f"Processing failed: {e}")
 
 @app.post("/batch-predict")
 async def batch_predict(files: list[UploadFile] = File(...)):
+    """Predict multiple audio files at once."""
     if predictor is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
@@ -159,30 +158,65 @@ async def batch_predict(files: list[UploadFile] = File(...)):
     for file in files:
         try:
             content = await file.read()
-            audio, sr = librosa.load(io.BytesIO(content), sr=4000, mono=True)
-            raw_result = predictor.predict(audio, sr)
-            logger.info(f"batch_predict: raw_result type={type(raw_result)} repr={str(raw_result)[:200]}")
+            audio_data, sr = librosa.load(io.BytesIO(content), sr=4000, mono=True)
+            label, conf = predictor.predict(audio_data, sr)
 
-            out = raw_result.copy() if isinstance(raw_result, dict) else {"prediction": raw_result}
-            out["file_name"] = file.filename
-            out["status"] = "success"
-            prediction_history.append(out.copy())
-            results.append(out)
+            result = {
+                "predicted_class": label,
+                "confidence": float(conf),
+                "file_name": file.filename,
+                "status": "success",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+
+            prediction_history.append(result.copy())
+            results.append(result)
         except Exception as e:
+            logger.exception(f"Error processing {file.filename}")
             results.append({"file_name": file.filename, "status": "error", "error": str(e)})
 
     return {"results": results, "total": len(files)}
+
+# -------------------------------------------------------------------
+# Training
+# -------------------------------------------------------------------
+@app.post("/retrain")
+async def trigger_retrain():
+    """Trigger model retraining."""
+    return {"message": "Retraining triggered.", "status": "started"}
+
+@app.post("/upload-training-data")
+async def upload_training_data(files: list[UploadFile] = File(...), target_class: str = "normal"):
+    """Upload new training data."""
+    if target_class not in ["normal", "abnormal"]:
+        raise HTTPException(status_code=400, detail="Invalid target_class")
+    
+    upload_dir = Path(f"data/uploads/{target_class}")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    saved_count = 0
+    for file in files:
+        if file.filename.lower().endswith((".wav", ".mp3", ".flac")):
+            content = await file.read()
+            (upload_dir / file.filename).write_bytes(content)
+            saved_count += 1
+    
+    return {"message": f"Uploaded {saved_count} files", "count": saved_count}
+
+@app.get("/training-status")
+def training_status():
+    return {"status": "idle", "progress": 0, "message": "No training in progress"}
 
 # -------------------------------------------------------------------
 # Metrics & Visualization
 # -------------------------------------------------------------------
 @app.get("/metrics")
 def metrics():
-    f = Path("monitoring/metrics.json")
-    if f.exists():
+    metrics_file = Path("monitoring/metrics.json")
+    if metrics_file.exists():
         try:
-            return json.loads(f.read_text())
-        except:
+            return json.loads(metrics_file.read_text())
+        except Exception:
             pass
     return {"accuracy": None, "predictions_served": len(prediction_history)}
 
@@ -201,53 +235,7 @@ def class_distribution():
     return {"distribution": dist}
 
 # -------------------------------------------------------------------
-# Training
-# -------------------------------------------------------------------
-@app.get("/training-status")
-def training_status():
-    return {"status": "idle", "progress": 0, "message": "No training in progress"}
-
-@app.post("/retrain")
-async def trigger_retrain(background_tasks: BackgroundTasks):
-    """Trigger retraining in a background task so the API remains responsive.
-
-    This will execute `src/train.py` using the current Python interpreter.
-    """
-    def _run_retrain():
-        try:
-            import subprocess, sys
-            cwd = Path(__file__).resolve().parents[1]
-            cmd = [sys.executable, str(cwd / 'src' / 'train.py')]
-            subprocess.Popen(cmd, cwd=str(cwd))
-            logger.info("Retraining subprocess started.")
-        except Exception as ex:
-            logger.exception(f"Failed to start retraining: {ex}")
-
-    background_tasks.add_task(_run_retrain)
-    return {"message": "Retraining triggered.", "status": "started"}
-
-@app.post("/upload-training-data")
-async def upload_training_data(files: list[UploadFile] = File(...), target_class: str = "normal"):
-    if target_class not in ["normal", "abnormal"]:
-        raise HTTPException(status_code=400, detail="Invalid class")
-
-    upload_dir = Path(f"data/uploads/{target_class}")
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    count = 0
-    for file in files:
-        if file.filename.lower().endswith((".wav", ".mp3", ".flac")):
-            content = await file.read()
-            (upload_dir / file.filename).write_bytes(content)
-            count += 1
-
-    return {"message": f"Uploaded {count} files", "count": count}
-
-# -------------------------------------------------------------------
-# Run
+# Entry
 # -------------------------------------------------------------------
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
-@app.get("/")
-def root():
-    return {"status": "HeartBeat AI API is running!"}
