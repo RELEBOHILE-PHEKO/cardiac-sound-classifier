@@ -248,3 +248,6 @@ async def upload_training_data(files: list[UploadFile] = File(...), target_class
 # -------------------------------------------------------------------
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.get("/")
+def root():
+    return {"status": "HeartBeat AI API is running!"}
