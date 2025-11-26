@@ -4,18 +4,11 @@ services:
   heartbeat-ai:
     build: .
     ports:
-      - "8000:8000"
       - "8501:8501"
     volumes:
       - ./models:/app/models
       - ./data:/app/data
-      - ./logs:/app/logs
+      - ./outputs:/app/outputs
     environment:
-      - MODEL_PATH=/app/models/heartbeat_model.h5
       - LOG_LEVEL=INFO
     restart: unless-stopped
-
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"

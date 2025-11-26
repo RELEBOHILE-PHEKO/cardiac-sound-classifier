@@ -1,30 +1,22 @@
-# Use a lightweight Python base image
-FROM python:3.10-slim
+# Streamlit-first Docker image for HeartBeat AI
+FROM python:3.11-slim
 
-# Prevent Python from buffering stdout/stderr
 ENV PYTHONUNBUFFERED=1
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies required by Librosa & TensorFlow
+# System deps for audio processing
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsndfile1 \
-    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY requirements.txt .
-
-# Install Python dependencies
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project files
 COPY . .
 
-# Expose port
-EXPOSE 8080
+EXPOSE 8501
 
-# Start FastAPI server
-CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8080"]
+# Start Streamlit (serve the all-in-one frontend)
+CMD ["streamlit", "run", "frontend/app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]
