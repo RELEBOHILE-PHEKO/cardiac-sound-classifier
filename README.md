@@ -35,7 +35,7 @@ A complete end-to-end machine learning system that classifies cardiac sounds as 
 - [Load Testing](#-load-testing)
 - [Deployment](#-deployment)
 - [Project Structure](#-project-structure)
-- [Contributing](#-contributing)
+
 
 ---
 
