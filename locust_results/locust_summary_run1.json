@@ -1,0 +1,12 @@
+{
+  "host": "http://127.0.0.1:8000",
+  "date": "2025-11-27T00:47:18Z",
+  "total_requests": 421,
+  "failures": 0,
+  "avg_response_time_ms": 578.8022648457951,
+  "median_response_time_ms": 390.0,
+  "p90_response_time_ms": 1100,
+  "max_response_time_ms": 5629.720899989479,
+  "throughput_req_per_s": 7.209946909649472,
+  "notes": "Headless Locust POST test: 20 users, spawn rate 2 u/s, duration 1m. Target was POST /predict to local API. No failures observed."
+}

@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    image: heartbeat-api:latest
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+# NOTE: To scale with Docker Compose (for example to 3 replicas):
+# docker compose -f docker-compose.locust.yml up --scale api=3 --build -d
+# Then run Locust against the load balancer or service host.

@@ -15,6 +15,15 @@ ENV/
 .vscode/
 .idea/
 
+# Generated outputs and logs
+outputs/
+*.log
+
+# Test / cache
+.pytest_cache/
+.mypy_cache/
+
+
 /data/processed/
 /data/uploaded/
 /logs/

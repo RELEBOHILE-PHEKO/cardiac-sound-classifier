@@ -1,0 +1,12 @@
+{
+  "host": "https://heartbeat-ai-classifier.streamlit.app",
+  "date": "2025-11-26T00:00:00Z",
+  "total_requests": 205,
+  "failures": 0,
+  "avg_response_time_ms": 807,
+  "median_response_time_ms": 610,
+  "p90_response_time_ms": 900,
+  "max_response_time_ms": 4381,
+  "throughput_req_per_s": 3.6,
+  "notes": "Headless Locust smoke test: 10 users, spawn rate 2 u/s, duration 1m. Target was /health endpoint. No failures observed."
+}
