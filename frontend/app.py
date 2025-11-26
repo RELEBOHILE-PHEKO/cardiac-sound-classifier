@@ -16,6 +16,13 @@ import plotly.graph_objects as go
 import streamlit as st
 import librosa
 import numpy as np
+import sys
+from pathlib import Path
+
+# Ensure repository root is on sys.path so `from src...` imports work
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 # -----------------------------------------------------------
 # Page Config
