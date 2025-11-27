@@ -1,5 +1,11 @@
 {
-    "accuracy": null,
-    "latency_ms": null,
-    "predictions_served": 0
+  "accuracy": 1.0,
+  "confusion_matrix": [
+    [
+      3
+    ]
+  ],
+  "history_plot": "outputs\\training_history.png",
+  "confusion_plot": "outputs\\confusion_matrix.png",
+  "updated_at": "2025-11-27T03:30:46.541934"
 }

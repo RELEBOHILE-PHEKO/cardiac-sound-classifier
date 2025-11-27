@@ -1,0 +1,20 @@
+{
+  "updated_at": "2025-11-27T03:30:46.541934",
+  "classes": [
+    "normal_heart",
+    "murmur",
+    "extrasystole",
+    "normal_resp",
+    "wheeze",
+    "crackle"
+  ],
+  "accuracy": 1.0,
+  "history_keys": [
+    "accuracy",
+    "loss",
+    "val_accuracy",
+    "val_loss",
+    "learning_rate"
+  ],
+  "model_path": "models\\heartbeat_model.h5"
+}

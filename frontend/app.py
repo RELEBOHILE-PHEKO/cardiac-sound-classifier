@@ -507,31 +507,47 @@ def show_visualizations_page():
         st.warning("⚠️ No visualizations found. Run the training notebook to generate visualizations.")
         return
     
+    def _safe_show_image(p: Path, caption: str):
+        """Safely render an image for Streamlit.
+
+        Attempt to pass the file path first (works in most environments).
+        If that raises, fall back to reading raw bytes and passing bytes.
+        All exceptions are handled and reported to avoid crashing the app.
+        """
+        try:
+            st.image(str(p), caption=caption, use_container_width=True)
+            return
+        except Exception:
+            try:
+                data = p.read_bytes()
+                st.image(data, caption=caption, use_container_width=True)
+                return
+            except Exception as e:
+                st.error(f"Could not render image {p.name}: {e}")
+
     # Class Distribution
     st.header("Dataset Analysis")
     class_dist = outputs_dir / "class_distribution.png"
     if class_dist.exists():
-        # Pass the path to Streamlit instead of a PIL Image object to avoid
-        # potential file-handle / decoding issues in some deployment environments.
-        st.image(str(class_dist), caption="Training Data Class Distribution", use_container_width=True)
-    
+        _safe_show_image(class_dist, "Training Data Class Distribution")
+
     # Training History
     st.header("Model Training Performance")
     training_history = outputs_dir / "training_history.png"
     if training_history.exists():
-        st.image(str(training_history), caption="Training and Validation Metrics", use_container_width=True)
-    
+        _safe_show_image(training_history, "Training and Validation Metrics")
+
     # Confusion Matrix
     st.header("Model Evaluation")
     confusion_matrix = outputs_dir / "confusion_matrix.png"
     if confusion_matrix.exists():
-        st.image(str(confusion_matrix), caption="Confusion Matrix", use_container_width=True)
-    
+        _safe_show_image(confusion_matrix, "Confusion Matrix")
+
     # ROC Curve
     st.header("Classifier Performance")
     roc_curve = outputs_dir / "roc_curve.png"
     if roc_curve.exists():
-        st.image(str(roc_curve), caption="ROC Curve", use_container_width=True)
+        _safe_show_image(roc_curve, "ROC Curve")
 
 # -----------------------------------------------------------
 # MONITORING PAGE
