@@ -514,17 +514,31 @@ def show_visualizations_page():
         If that raises, fall back to reading raw bytes and passing bytes.
         All exceptions are handled and reported to avoid crashing the app.
         """
+        # Try the modern Streamlit API first. Some Streamlit versions may not
+        # accept a string `width='stretch'`, so fall back to a simpler call
+        # if a TypeError (or comparison error) occurs.
         try:
-            # Streamlit deprecated `use_container_width` — use `width='stretch'`.
             st.image(str(p), caption=caption, width='stretch')
             return
-        except Exception:
+        except TypeError as te:
+            # Older/newer Streamlit mismatch — try without width argument.
             try:
-                data = p.read_bytes()
-                st.image(data, caption=caption, width='stretch')
+                st.image(str(p), caption=caption)
                 return
-            except Exception as e:
-                st.error(f"Could not render image {p.name}: {e}")
+            except Exception:
+                # Fall through to bytes-based attempt below
+                pass
+        except Exception:
+            # Non-TypeError exception — try the bytes fallback below
+            pass
+
+        # Bytes fallback: attempt to read raw bytes and render those
+        try:
+            data = p.read_bytes()
+            st.image(data, caption=caption)
+            return
+        except Exception as e:
+            st.error(f"Could not render image {p.name}: {e}")
 
     # Class Distribution
     st.header("Dataset Analysis")
