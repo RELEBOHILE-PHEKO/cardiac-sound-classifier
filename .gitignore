@@ -18,6 +18,8 @@ ENV/
 # Generated outputs and logs
 outputs/
 *.log
+# Retrain log (explicit)
+outputs/retrain.log
 
 # Test / cache
 .pytest_cache/

@@ -621,8 +621,28 @@ def show_monitoring_page():
             try:
                 # Use the retrain helper which prepares uploaded files and launches training
                 retrain_script = cwd / 'tools' / 'retrain_from_uploads.py'
-                subprocess.Popen([sys.executable, str(retrain_script)], cwd=str(cwd))
-                st.success("Retraining started (preparing uploads then training)")
+                # Ensure outputs dir exists
+                out_dir = cwd / 'outputs'
+                out_dir.mkdir(parents=True, exist_ok=True)
+                log_path = out_dir / 'retrain.log'
+
+                # Open log file in append-binary and start process redirecting stdout/stderr
+                log_f = open(log_path, 'ab')
+                proc = subprocess.Popen(
+                    [sys.executable, str(retrain_script)],
+                    cwd=str(cwd),
+                    stdout=log_f,
+                    stderr=subprocess.STDOUT,
+                    bufsize=1
+                )
+
+                # Persist process info in session state so UI can show/stop it
+                st.session_state.retrain = {
+                    'pid': proc.pid,
+                    'log_path': str(log_path),
+                }
+
+                st.success(f"Retraining started (pid={proc.pid}). Logs: {log_path}")
             except Exception as e:
                 st.error(f"Failed to start retrain: {e}")
 
@@ -641,6 +661,38 @@ def show_monitoring_page():
                 except Exception as e:
                     st.warning(f"Failed to save {f.name}: {e}")
             st.success(f"Saved {saved} files to {upload_dir}")
+
+    # Retrain log viewer / controller
+    if 'retrain' in st.session_state:
+        st.divider()
+        st.subheader("Retrain Controls & Logs")
+        info = st.session_state.retrain
+        st.markdown(f"**Retrain PID:** {info.get('pid')}  \n                     **Log file:** `{info.get('log_path')}`")
+
+        col_a, col_b = st.columns([1, 1])
+        with col_a:
+            if st.button("🔄 Refresh Retrain Log"):
+                # Show the tail of the log file
+                try:
+                    p = Path(info.get('log_path'))
+                    if p.exists():
+                        data = p.read_bytes()
+                        # decode safely and show last portion
+                        text = data.decode(errors='replace')
+                        st.code(text[-20000:])
+                    else:
+                        st.info("Log file not created yet. Try again in a few seconds.")
+                except Exception as e:
+                    st.error(f"Could not read log: {e}")
+        with col_b:
+            if st.button("⏹️ Stop Retrain"):
+                try:
+                    import psutil
+                    p = psutil.Process(info.get('pid'))
+                    p.terminate()
+                    st.success("Sent terminate to retrain process")
+                except Exception as e:
+                    st.error(f"Failed to stop process: {e}")
 
 # -----------------------------------------------------------
 # Route to Selected Page
