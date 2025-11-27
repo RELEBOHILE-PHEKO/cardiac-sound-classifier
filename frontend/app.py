@@ -619,8 +619,10 @@ def show_monitoring_page():
             import subprocess, sys
             cwd = Path(__file__).resolve().parents[1]
             try:
-                subprocess.Popen([sys.executable, '-m', 'src.train'], cwd=str(cwd))
-                st.success("Retraining started")
+                # Use the retrain helper which prepares uploaded files and launches training
+                retrain_script = cwd / 'tools' / 'retrain_from_uploads.py'
+                subprocess.Popen([sys.executable, str(retrain_script)], cwd=str(cwd))
+                st.success("Retraining started (preparing uploads then training)")
             except Exception as e:
                 st.error(f"Failed to start retrain: {e}")
 

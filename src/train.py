@@ -330,3 +330,51 @@ def _unfreeze_top_layers(ensemble: HeartbeatEnsemble, fraction: float = 0.2) -> 
         unfreeze_from = int(total_layers * (1 - fraction))
         for idx, layer in enumerate(branch.layers):
             layer.trainable = idx >= unfreeze_from
+
+
+def _cli_main(argv: list[str] | None = None) -> int:
+    """Simple CLI so `python -m src.train` runs training.
+
+    Usage examples:
+      python -m src.train data --epochs 5 --batch-size 16
+      python -m src.train --help
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run training pipeline for HeartBeat AI")
+    parser.add_argument("data_dir", nargs="?", default=str(settings.data_dir), help="Path to data directory (contains train/ and validation/)")
+    parser.add_argument("--epochs", type=int, default=10, help="Number of training epochs")
+    parser.add_argument("--batch-size", type=int, default=32, help="Batch size for training")
+    parser.add_argument("--fine-tune", action="store_true", help="Run fine-tuning after base training")
+    parser.add_argument("--dry-run", action="store_true", help="Validate data and exit without training")
+
+    args = parser.parse_args(argv)
+
+    data_dir = Path(args.data_dir)
+    if args.dry_run:
+        # Quick validation of directories
+        try:
+            _ = list(data_dir.rglob("*.wav"))
+            print(f"Dry-run: found audio files under {data_dir}")
+            return 0
+        except Exception as e:
+            print(f"Dry-run failed: {e}")
+            return 2
+
+    try:
+        print(f"Starting training: data={data_dir}, epochs={args.epochs}, batch_size={args.batch_size}")
+        result = train_pipeline(data_dir, epochs=args.epochs, batch_size=args.batch_size, fine_tune=args.fine_tune)
+        print("Training finished. Artifacts:")
+        for k, v in result.get("artifacts", {}).items():
+            print(f" - {k}: {v}")
+        return 0
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        print(f"Training failed: {e}")
+        return 3
+
+
+if __name__ == "__main__":
+    raise SystemExit(_cli_main())
