@@ -8,6 +8,12 @@ import sys
 from pathlib import Path
 import tempfile
 import traceback
+import os
+
+# Disable oneDNN informational message when TensorFlow is loaded by the
+# predictor (keeps container/demo output quiet).
+os.environ.setdefault('TF_ENABLE_ONEDNN_OPTS', '0')
+os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse

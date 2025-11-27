@@ -3,6 +3,11 @@ HeartBeat AI - Unified Streamlit Application
 All-in-one: ML model + UI + Dashboard (No separate API needed)
 """
 
+import os
+# Disable oneDNN custom ops information from TensorFlow for clearer demo output
+os.environ.setdefault('TF_ENABLE_ONEDNN_OPTS', '0')
+os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
+
 import io
 import gc
 import time

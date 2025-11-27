@@ -1,6 +1,12 @@
 """Training entrypoints for HeartBeat AI."""
 from __future__ import annotations
 
+import os
+# Disable oneDNN custom ops messages for cleaner demo output
+os.environ.setdefault('TF_ENABLE_ONEDNN_OPTS', '0')
+# Reduce TensorFlow logging verbosity (INFO messages)
+os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
+
 import json
 import logging
 from datetime import datetime
