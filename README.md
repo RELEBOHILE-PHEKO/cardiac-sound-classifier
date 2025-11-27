@@ -1,91 +1,81 @@
-# ❤️ HeartBeat AI — Cardiac Sound Classification System
-## 🎥 Demo
+# HeartBeat AI — Cardiac Sound Classification System
 
-###  Video Demonstration
-**[▶️ Watch Full Demo Video](](https://youtu.be/lFsv3v2-Lb8))**
+## Demo
 
-**Demo Contents (5-8 minutes):**
-1. ✅ System startup and health checks
-2. ✅ Single audio file prediction with confidence scores
-3. ✅ Batch processing of multiple files
-4. ✅ Upload new training data for retraining
-5. ✅ Trigger model retraining process
-6. ✅ View monitoring dashboard and analytics
-7. ✅ Load testing demonstration with Locust
-
-###  Live Deployment
-**[🔗 Access Live Application](https://heartbeat-ai-classifier.streamlit.app)** *(Streamlit Community Cloud)*
+### Video Demonstration
+Watch Full Demo Video: https://youtu.be/lFsv3v2-Lb8
 
 
-> **Production-ready ML pipeline for detecting cardiac abnormalities from heart sound recordings using deep learning.**
+### Live Deployment
+**[Access Live Application](https://heartbeat-ai-classifier.streamlit.app)** (Streamlit Community Cloud)
+
+> Production-ready ML pipeline for detecting cardiac abnormalities from heart sound recordings using deep learning.
 
 A complete end-to-end machine learning system that classifies cardiac sounds as **normal** or **abnormal** using a lightweight CNN model. Features interactive web UI, RESTful API, automated retraining, comprehensive monitoring, and load-tested scalability.
 
 ---
 
-##  Table of Contents
+## Table of Contents
 
-- [Features](#-features)
-- [System Architecture](#-system-architecture)
-- [Demo](#-demo)
-- [Quick Start](#-quick-start)
-- [Model Performance](#-model-performance)
-- [Usage Guide](#-usage-guide)
-- [Retraining Workflow](#-retraining-workflow)
-- [Load Testing](#-load-testing)
-- [Deployment](#-deployment)
-- [Project Structure](#-project-structure)
-
+- [Features](#features)
+- [System Architecture](#system-architecture)
+- [Demo](#demo)
+- [Quick Start](#quick-start)
+- [Model Performance](#model-performance)
+- [Usage Guide](#usage-guide)
+- [Retraining Workflow](#retraining-workflow)
+- [Load Testing](#load-testing)
+- [Deployment](#deployment)
+- [Project Structure](#project-structure)
 
 ---
 
 ## Features
 
 ### Core Capabilities
-- 🎯 **Single Audio Prediction** - Upload `.wav` file and get instant classification with confidence scores
-- 📦 **Batch Processing** - Analyze multiple files simultaneously with downloadable CSV results
-- 🔄 **Automated Retraining** - Upload new labeled data and retrain model with one click
-- 📊 **Real-time Monitoring** - Track predictions, metrics, system health, and model performance
-- 🖥️ **Interactive Dashboard** - User-friendly Streamlit interface with visualizations
-- 🌐 **RESTful API** - FastAPI backend with auto-generated Swagger documentation
+- **Single Audio Prediction** - Upload .wav file and get instant classification with confidence scores
+- **Batch Processing** - Analyze multiple files simultaneously with downloadable CSV results
+- **Automated Retraining** - Upload new labeled data and retrain model with one click
+- **Real-time Monitoring** - Track predictions, metrics, system health, and model performance
+- **Interactive Dashboard** - User-friendly Streamlit interface with visualizations
+- **RESTful API** - FastAPI backend with auto-generated Swagger documentation
 
 ### Technical Highlights
-- ⚡ **Optimized Performance** - 30-50ms inference time per prediction
-- 📉 **Lightweight Model** - 2.5MB model size (75% smaller than baseline)
-- 🎯 **High Accuracy** - 85.5% accuracy on validation set
-- 📈 **Comprehensive Metrics** - Accuracy, Precision, Recall, F1-Score, AUC-ROC
-- 🔥 **Load Tested** - Handles 100+ concurrent users
-- 🐳 **Docker Ready** - Containerized deployment option available
+- **Optimized Performance** - 30-50ms inference time per prediction
+- **Lightweight Model** - 2.5MB model size (75% smaller than baseline)
+- **High Accuracy** - 85.5% accuracy on validation set
+- **Comprehensive Metrics** - Accuracy, Precision, Recall, F1-Score, AUC-ROC
+- **Load Tested** - Handles 100+ concurrent users
+- **Docker Ready** - Containerized deployment option available
 
 ---
 
-##  System Architecture
+## System Architecture
 
 <img width="940" height="1614" alt="image" src="https://github.com/user-attachments/assets/308bd879-1145-4003-ba23-5ea7d87015c8" />
-
 
 ### Architecture Overview
 
 The HeartBeat AI system follows a **4-layer architecture**:
 
-#### 1. **User Interface Layer**
+#### 1. User Interface Layer
 - **Streamlit Dashboard** (Port 8501): Interactive web UI for predictions, visualizations, and monitoring
-- **FastAPI Backend** (Port 8000): RESTful API with auto-generated docs at `/docs.`
+- **FastAPI Backend** (Port 8000): RESTful API with auto-generated docs at `/docs`
 - **Browser Client**: User access point supporting file upload and real-time results
 
-#### 2. **Application Layer**
+#### 2. Application Layer
 - **Prediction Engine**: `HeartbeatPredictor` class handles inference and preprocessing
 - **Upload Manager**: Manages file validation and storage for retraining
 - **Monitoring Service**: Tracks metrics, uptime, and prediction history
 - **Retraining Orchestrator**: Triggers and manages background training jobs
 
-#### 3. **Processing Layer**
+#### 3. Processing Layer
 - **Audio Preprocessor**: Loads audio, resamples to 4kHz, extracts 128x79x1 mel-spectrograms
 - **CNN Model**: Lightweight 3-layer CNN (614K parameters, 2.5MB)
 - **Training Pipeline**: End-to-end training with data augmentation and callbacks
 - **Evaluation Module**: Computes comprehensive performance metrics
 
-#### 4. **Data Layer**
+#### 4. Data Layer
 - **Training Data**: PhysioNet Challenge 2016 dataset (3,240 samples, 6 subsets)
 - **Model Registry**: Stored models (.h5), metadata, and checkpoints
 - **Upload Storage**: User-uploaded files organized by class
@@ -103,11 +93,9 @@ User Upload → Audio Preprocessing → Mel-Spectrogram → CNN Inference → Cl
 Upload Labeled Data → Store in data/uploads/ → Trigger Training → Train on Combined Data → Update Model & Metrics
 ```
 
-
-
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Python 3.8 or higher
@@ -141,7 +129,7 @@ pip install -r requirements.txt
 
 **Step 4: Verify Installation**
 ```bash
-python -c "import tensorflow; import librosa; import streamlit; print('✅ Installation successful!')"
+python -c "import tensorflow; import librosa; import streamlit; print('Installation successful!')"
 ```
 
 ### Running the System
@@ -169,14 +157,14 @@ python start_system.py
 ### Quick Test
 
 1. Open dashboard at http://localhost:8501
-2. Navigate to **🔍 Prediction** page
+2. Navigate to **Prediction** page
 3. Upload a test audio file from `data/test/`
-4. Click **"🔍 Analyze Heart Sound"**
+4. Click **"Analyze Heart Sound"**
 5. View results with confidence scores
 
 ---
 
-## 📊 Model Performance
+## Model Performance
 
 ### Evaluation Metrics
 
@@ -217,12 +205,12 @@ python start_system.py
 
 ---
 
-## 📖 Usage Guide
+## Usage Guide
 
 ### Single Prediction
 
 **Via Web Dashboard:**
-1. Navigate to **🔍 Prediction** page
+1. Navigate to **Prediction** page
 2. Upload audio file (.wav, .mp3, .flac)
 3. Click **"Analyze Heart Sound"**
 4. View classification result and probabilities
@@ -250,7 +238,7 @@ with open('audio.wav', 'rb') as f:
 ### Batch Prediction
 
 **Via Dashboard:**
-1. Go to **🔍 Prediction** → **Batch Prediction**
+1. Go to **Prediction** → **Batch Prediction**
 2. Upload multiple audio files
 3. Click **"Analyze All Files"**
 4. Download results as CSV
@@ -262,7 +250,7 @@ python tools/run_batch_local.py --folder data/validation --limit 10
 
 ### Viewing Visualizations
 
-Navigate to **📊 Visualizations** to view:
+Navigate to **Visualizations** to view:
 - Training history (accuracy, loss)
 - Confusion matrix
 - ROC curve
@@ -272,7 +260,7 @@ Navigate to **📊 Visualizations** to view:
 
 ### Monitoring Dashboard
 
-Access **📈 Monitoring** page to view:
+Access **Monitoring** page to view:
 - Model performance metrics
 - Prediction history
 - System uptime
@@ -281,22 +269,22 @@ Access **📈 Monitoring** page to view:
 
 ---
 
-## 🔄 Retraining Workflow
+## Retraining Workflow
 
 ### Upload New Training Data
 
 **Via Dashboard:**
-1. Navigate to **📤 Upload & Retrain** page
+1. Navigate to **Upload & Retrain** page
 2. Select target class (**normal** or **abnormal**)
 3. Upload audio files (.wav, .mp3, .flac)
-4. Click **"📤 Upload Training Data"**
+4. Click **"Upload Training Data"**
 5. Files saved to `data/uploads/<class>/`
 
 ### Trigger Retraining
 
 **Method 1: Via Dashboard**
-1. Go to **📤 Upload & Retrain**
-2. Click **"🔄 Start Retraining"**
+1. Go to **Upload & Retrain**
+2. Click **"Start Retraining"**
 3. Monitor training status in real-time
 4. New model automatically replaces old one
 
@@ -329,7 +317,7 @@ python train_lightweight.py
 
 ---
 
-## 🧪 Load Testing
+## Load Testing
 
 ### Setup Locust
 
@@ -374,22 +362,22 @@ Open **http://localhost:8089** to configure test parameters
 | 100 | 78 | 650ms | 1100ms | 0% |
 
 **Observations:**
-- ✅ 42% throughput improvement with 3 containers
-- ✅ 46% latency reduction under high load
-- ✅ Zero failures with proper scaling
+- 42% throughput improvement with 3 containers
+- 46% latency reduction under high load
+- Zero failures with proper scaling
 
 ### Test Scenarios
 
 The Locust script tests:
-- ✅ Health check endpoint (`GET /health`)
-- ✅ Single prediction (`POST /predict`)
-- ✅ Batch prediction (`POST /batch-predict`)
-- ✅ Metrics retrieval (`GET /metrics`)
-- ✅ Prediction history (`GET /visualizations/prediction-history`)
+- Health check endpoint (`GET /health`)
+- Single prediction (`POST /predict`)
+- Batch prediction (`POST /batch-predict`)
+- Metrics retrieval (`GET /metrics`)
+- Prediction history (`GET /visualizations/prediction-history`)
 
 ---
 
-##  Deployment
+## Deployment
 
 ### Streamlit Community Cloud (Easiest)
 
@@ -434,7 +422,7 @@ streamlit run frontend/app.py --server.port 8501 --server.address 0.0.0.0
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 CARDIAC-SOUND-CLASSIFICATION/
@@ -501,8 +489,7 @@ CARDIAC-SOUND-CLASSIFICATION/
 
 ---
 
-
-### Development Setup
+## Development Setup
 
 ```bash
 # Clone your fork
@@ -519,17 +506,11 @@ flake8 src/
 black src/
 ```
 
-
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Dataset**: [PhysioNet/CinC Challenge 2016](https://physionet.org/content/challenge-2016/)
-
 - **Libraries**: TensorFlow, Keras, Librosa, FastAPI, Streamlit, and the open-source community
 
 ---
-
-
-
-
