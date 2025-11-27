@@ -154,6 +154,20 @@ def train_pipeline(
     val_ds = build_tf_dataset(val_wave, val_spec, val_labels, batch_size, False)
 
     model = ensemble.build_ensemble()
+    # If a best-checkpoint exists from prior training, load its weights to
+    # continue fine-tuning from the best-known state instead of random init.
+    try:
+        best_ckpt = settings.model_dir / "heartbeat_best.h5"
+        if best_ckpt.exists():
+            print(f"Loading weights from checkpoint: {best_ckpt}")
+            try:
+                model.load_weights(str(best_ckpt))
+                print("✅ Loaded checkpoint weights for fine-tuning.")
+            except Exception as e:
+                print(f"Warning: failed to load checkpoint weights: {e}")
+    except Exception:
+        # Non-fatal — continue with training from scratch
+        pass
     callbacks = _default_callbacks()
 
     history = model.fit(

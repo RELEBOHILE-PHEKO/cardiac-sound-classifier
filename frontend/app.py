@@ -515,12 +515,13 @@ def show_visualizations_page():
         All exceptions are handled and reported to avoid crashing the app.
         """
         try:
-            st.image(str(p), caption=caption, use_container_width=True)
+            # Streamlit deprecated `use_container_width` — use `width='stretch'`.
+            st.image(str(p), caption=caption, width='stretch')
             return
         except Exception:
             try:
                 data = p.read_bytes()
-                st.image(data, caption=caption, use_container_width=True)
+                st.image(data, caption=caption, width='stretch')
                 return
             except Exception as e:
                 st.error(f"Could not render image {p.name}: {e}")
