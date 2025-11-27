@@ -511,29 +511,27 @@ def show_visualizations_page():
     st.header("Dataset Analysis")
     class_dist = outputs_dir / "class_distribution.png"
     if class_dist.exists():
-        img = Image.open(class_dist)
-        st.image(img, caption="Training Data Class Distribution", use_container_width=True)
+        # Pass the path to Streamlit instead of a PIL Image object to avoid
+        # potential file-handle / decoding issues in some deployment environments.
+        st.image(str(class_dist), caption="Training Data Class Distribution", use_container_width=True)
     
     # Training History
     st.header("Model Training Performance")
     training_history = outputs_dir / "training_history.png"
     if training_history.exists():
-        img = Image.open(training_history)
-        st.image(img, caption="Training and Validation Metrics", use_container_width=True)
+        st.image(str(training_history), caption="Training and Validation Metrics", use_container_width=True)
     
     # Confusion Matrix
     st.header("Model Evaluation")
     confusion_matrix = outputs_dir / "confusion_matrix.png"
     if confusion_matrix.exists():
-        img = Image.open(confusion_matrix)
-        st.image(img, caption="Confusion Matrix", use_container_width=True)
+        st.image(str(confusion_matrix), caption="Confusion Matrix", use_container_width=True)
     
     # ROC Curve
     st.header("Classifier Performance")
     roc_curve = outputs_dir / "roc_curve.png"
     if roc_curve.exists():
-        img = Image.open(roc_curve)
-        st.image(img, caption="ROC Curve", use_container_width=True)
+        st.image(str(roc_curve), caption="ROC Curve", use_container_width=True)
 
 # -----------------------------------------------------------
 # MONITORING PAGE
