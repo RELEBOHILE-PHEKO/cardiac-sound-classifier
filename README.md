@@ -1,8 +1,8 @@
 # ❤️ HeartBeat AI — Cardiac Sound Classification System
 ## 🎥 Demo
 
-### 📹 Video Demonstration
-**[▶️ Watch Full Demo Video](YOUR_YOUTUBE_LINK_HERE)**
+###  Video Demonstration
+**[▶️ Watch Full Demo Video](](https://youtu.be/lFsv3v2-Lb8))**
 
 **Demo Contents (5-8 minutes):**
 1. ✅ System startup and health checks
@@ -13,7 +13,7 @@
 6. ✅ View monitoring dashboard and analytics
 7. ✅ Load testing demonstration with Locust
 
-### 🌐 Live Deployment
+###  Live Deployment
 **[🔗 Access Live Application](https://heartbeat-ai-classifier.streamlit.app)** *(Streamlit Community Cloud)*
 
 
@@ -23,7 +23,7 @@ A complete end-to-end machine learning system that classifies cardiac sounds as 
 
 ---
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Features](#-features)
 - [System Architecture](#-system-architecture)
@@ -39,7 +39,7 @@ A complete end-to-end machine learning system that classifies cardiac sounds as 
 
 ---
 
-## ✨ Features
+## Features
 
 ### Core Capabilities
 - 🎯 **Single Audio Prediction** - Upload `.wav` file and get instant classification with confidence scores
@@ -59,7 +59,7 @@ A complete end-to-end machine learning system that classifies cardiac sounds as 
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 <img width="940" height="1614" alt="image" src="https://github.com/user-attachments/assets/308bd879-1145-4003-ba23-5ea7d87015c8" />
 
