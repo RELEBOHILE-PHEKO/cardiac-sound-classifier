@@ -374,6 +374,9 @@ def _iter_audio_files(directory: Path) -> Iterable[Path]:
 
 def _default_callbacks() -> list[tf.keras.callbacks.Callback]:
     checkpoint_path = settings.model_dir / "heartbeat_best.h5"
+    # Keras expects a string filepath for callbacks in some versions; ensure
+    # we pass a string to avoid AttributeError on Path objects.
+    checkpoint_filepath = str(checkpoint_path)
     return [
         tf.keras.callbacks.EarlyStopping(
             monitor="val_accuracy",
@@ -387,7 +390,7 @@ def _default_callbacks() -> list[tf.keras.callbacks.Callback]:
             min_lr=1e-6,
         ),
         tf.keras.callbacks.ModelCheckpoint(
-            filepath=checkpoint_path,
+            filepath=checkpoint_filepath,
             monitor="val_accuracy",
             save_best_only=True,
         ),
