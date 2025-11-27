@@ -508,36 +508,32 @@ def show_visualizations_page():
         return
     
     def _safe_show_image(p: Path, caption: str):
-        """Safely render an image for Streamlit.
+        """Render an image for Streamlit using raw bytes to avoid
+        version-dependent behavior when passing file paths.
 
-        Attempt to pass the file path first (works in most environments).
-        If that raises, fall back to reading raw bytes and passing bytes.
-        All exceptions are handled and reported to avoid crashing the app.
+        This intentionally reads the file into memory and passes the bytes
+        to `st.image`. Any exception is logged to `logs/image_errors.log`
+        for post-mortem debugging and displayed as a friendly message.
         """
-        # Try the modern Streamlit API first. Some Streamlit versions may not
-        # accept a string `width='stretch'`, so fall back to a simpler call
-        # if a TypeError (or comparison error) occurs.
-        try:
-            st.image(str(p), caption=caption, width='stretch')
-            return
-        except TypeError as te:
-            # Older/newer Streamlit mismatch — try without width argument.
-            try:
-                st.image(str(p), caption=caption)
-                return
-            except Exception:
-                # Fall through to bytes-based attempt below
-                pass
-        except Exception:
-            # Non-TypeError exception — try the bytes fallback below
-            pass
-
-        # Bytes fallback: attempt to read raw bytes and render those
         try:
             data = p.read_bytes()
             st.image(data, caption=caption)
             return
         except Exception as e:
+            # Ensure logs directory exists
+            try:
+                log_dir = Path('logs')
+                log_dir.mkdir(parents=True, exist_ok=True)
+                with open(log_dir / 'image_errors.log', 'a', encoding='utf-8') as fh:
+                    import traceback
+
+                    fh.write(f"[{datetime.utcnow().isoformat()}] Error rendering {p}\n")
+                    traceback.print_exc(file=fh)
+                    fh.write("\n")
+            except Exception:
+                # If logging fails, continue to show a friendly error
+                pass
+
             st.error(f"Could not render image {p.name}: {e}")
 
     # Class Distribution
