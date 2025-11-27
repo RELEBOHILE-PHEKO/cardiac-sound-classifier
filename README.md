@@ -286,7 +286,7 @@ Access **Monitoring** page to view:
 1. Go to **Upload & Retrain**
 2. Click **"Start Retraining"**
 3. Monitor training status in real-time
-4. New model automatically replaces old one
+4. New model automatically is saved
 
 **Method 2: Via Command Line (Recommended)**
 ```bash
