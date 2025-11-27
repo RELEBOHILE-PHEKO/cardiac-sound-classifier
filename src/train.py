@@ -355,7 +355,35 @@ def save_artifacts(
     metrics_path.write_text(json.dumps(metrics_payload, indent=2))
 
     history_path = OUTPUT_DIR / "training_history.json"
-    history_path.write_text(json.dumps(history, indent=2))
+    # Ensure history is JSON-serializable (convert numpy types/floats to native Python)
+    def _to_serializable(obj):
+        try:
+            # numpy scalar types
+            import numpy as _np
+
+            if isinstance(obj, (_np.floating, _np.integer)):
+                return obj.item()
+            if isinstance(obj, _np.ndarray):
+                return obj.tolist()
+        except Exception:
+            # numpy not available or conversion failed; fall back
+            pass
+
+        # builtin types that are JSON-serializable will pass through
+        if isinstance(obj, (str, int, float, bool)) or obj is None:
+            return obj
+
+        # For lists/tuples/dicts, convert recursively
+        if isinstance(obj, (list, tuple)):
+            return [_to_serializable(x) for x in obj]
+        if isinstance(obj, dict):
+            return {str(k): _to_serializable(v) for k, v in obj.items()}
+
+        # Fallback: convert to string representation
+        return str(obj)
+
+    serializable_history = _to_serializable(history)
+    history_path.write_text(json.dumps(serializable_history, indent=2))
 
     return {
         "model_path": model_path,
