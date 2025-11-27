@@ -100,6 +100,25 @@ def train_pipeline(
         preprocessor,
         class_names,
     )
+    # Ensure spectrogram arrays match the ensemble's expected input shape:
+    # - add channel axis if missing
+    # - pad or truncate the time axis to match ensemble.spectrogram_input_shape
+    try:
+        expected_spec_shape = ensemble.spectrogram_input_shape
+        expected_time = expected_spec_shape[1]
+        # train_spec shape is (N, height, time) or (N, height, time, 1)
+        if train_spec.ndim == 3:
+            train_spec = train_spec[..., np.newaxis]
+        if train_spec.shape[2] != expected_time:
+            # pad or truncate along the time axis (axis=2)
+            n, h, t, c = train_spec.shape
+            new_spec = np.zeros((n, h, expected_time, c), dtype=train_spec.dtype)
+            copy_w = min(t, expected_time)
+            new_spec[:, :, :copy_w, :] = train_spec[:, :, :copy_w, :]
+            train_spec = new_spec
+    except Exception:
+        # If anything goes wrong here, fall back and let model raise a clear error
+        pass
     # validation directory may be named 'validation' or legacy 'test'
     val_dir = data_dir / "validation"
     if not val_dir.exists():
@@ -110,6 +129,20 @@ def train_pipeline(
         preprocessor,
         class_names,
     )
+    # Align validation spectrograms to model's expected shape as well
+    try:
+        expected_spec_shape = ensemble.spectrogram_input_shape
+        expected_time = expected_spec_shape[1]
+        if val_spec.ndim == 3:
+            val_spec = val_spec[..., np.newaxis]
+        if val_spec.shape[2] != expected_time:
+            n, h, t, c = val_spec.shape
+            new_spec = np.zeros((n, h, expected_time, c), dtype=val_spec.dtype)
+            copy_w = min(t, expected_time)
+            new_spec[:, :, :copy_w, :] = val_spec[:, :, :copy_w, :]
+            val_spec = new_spec
+    except Exception:
+        pass
 
     train_ds = build_tf_dataset(train_wave, train_spec, train_labels, batch_size, True)
     val_ds = build_tf_dataset(val_wave, val_spec, val_labels, batch_size, False)
@@ -176,18 +209,38 @@ def evaluate_model(
         y_true.extend(np.argmax(labels.numpy(), axis=1))
         y_pred.extend(np.argmax(predictions, axis=1))
 
-    report = classification_report(
-        y_true,
-        y_pred,
-        target_names=class_names,
-        zero_division=0,
-        output_dict=True,
-    )
-    cm = confusion_matrix(
-        y_true,
-        y_pred,
-        labels=list(range(len(class_names))),
-    )
+    # Handle case where the dataset contains fewer classes than the
+    # ensemble's full `class_names` (e.g., only uploaded data for one class).
+    unique_labels = sorted(set(y_true) | set(y_pred))
+    if len(unique_labels) != len(class_names):
+        # Restrict evaluation to present label indices and corresponding names
+        present_names = [class_names[i] for i in unique_labels]
+        report = classification_report(
+            y_true,
+            y_pred,
+            labels=unique_labels,
+            target_names=present_names,
+            zero_division=0,
+            output_dict=True,
+        )
+        cm = confusion_matrix(
+            y_true,
+            y_pred,
+            labels=unique_labels,
+        )
+    else:
+        report = classification_report(
+            y_true,
+            y_pred,
+            target_names=class_names,
+            zero_division=0,
+            output_dict=True,
+        )
+        cm = confusion_matrix(
+            y_true,
+            y_pred,
+            labels=list(range(len(class_names))),
+        )
 
     return {
         "accuracy": float(report["accuracy"]),

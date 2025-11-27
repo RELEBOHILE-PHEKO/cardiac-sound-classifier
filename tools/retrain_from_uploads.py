@@ -19,7 +19,7 @@ from pathlib import Path
 from random import shuffle
 
 
-def prepare_dataset(uploads_dir: Path, target_dir: Path, val_split: float = 0.2, dry_run: bool = False):
+def prepare_dataset(uploads_dir: Path, target_dir: Path, val_split: float = 0.2, dry_run: bool = False, class_map: dict | None = None):
     uploads_dir = Path(uploads_dir)
     target_dir = Path(target_dir)
 
@@ -41,8 +41,13 @@ def prepare_dataset(uploads_dir: Path, target_dir: Path, val_split: float = 0.2,
         train_files = files[:split_idx]
         val_files = files[split_idx:]
 
-        train_target = target_dir / 'train' / class_dir.name
-        val_target = target_dir / 'validation' / class_dir.name
+        # Apply optional mapping from upload folder name -> target class name
+        target_class = class_dir.name
+        if class_map and class_dir.name in class_map:
+            target_class = class_map[class_dir.name]
+
+        train_target = target_dir / 'train' / target_class
+        val_target = target_dir / 'validation' / target_class
         if not dry_run:
             train_target.mkdir(parents=True, exist_ok=True)
             val_target.mkdir(parents=True, exist_ok=True)
@@ -84,14 +89,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--no-train', action='store_true', help='Prepare data but do not launch training')
+    parser.add_argument('--class-map', action='append', help='Map upload folder to target class name, format src:dst. Can be repeated.')
 
     args = parser.parse_args(argv)
 
     uploads_dir = Path(args.uploads_dir)
     target_dir = Path(args.target_data)
 
+    # Parse class map pairs like "normal:normal_heart"
+    class_map = {}
+    if args.class_map:
+        for entry in args.class_map:
+            if ':' in entry:
+                src, dst = entry.split(':', 1)
+                class_map[src.strip()] = dst.strip()
+
     try:
-        prepare_dataset(uploads_dir, target_dir, val_split=args.validation_split, dry_run=args.dry_run)
+        prepare_dataset(uploads_dir, target_dir, val_split=args.validation_split, dry_run=args.dry_run, class_map=class_map)
     except Exception as e:
         print(f"Error preparing dataset: {e}")
         return 2
