@@ -24,3 +24,4 @@ python-dotenv==1.0.0
 pydantic==2.4.2
 orjson==3.9.10
 psutil==5.9.5
+pydantic-settings
